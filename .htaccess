@@ -1,0 +1,80 @@
+# Apache equivalent of _headers.
+#
+# _headers is read by Cloudflare Pages and by nothing else. On ordinary shared
+# hosting (cPanel, Hostinger, SiteGround, GoDaddy — all Apache) it is an inert
+# text file, so every protection it declares silently stops applying. This file
+# restates them in a form Apache honours.
+#
+# On nginx hosting neither file works: the headers must go in the server block.
+
+<IfModule mod_headers.c>
+  # This material is confidential. X-Robots-Tag is the belt to the meta tag's
+  # braces: it covers images and the PDF too, and is obeyed even by a crawler
+  # that never parses the HTML.
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+
+  # Don't let a review link sit in a proxy or browser cache.
+  Header always set Cache-Control "private, no-store"
+
+  # Fingerprinted build assets are immutable, so cache them hard. The filename
+  # changes whenever the content does.
+  <FilesMatch "\.(webp|avif|png|jpe?g|svg|woff2?|css|js)$">
+    Header always set Cache-Control "public, max-age=31536000, immutable"
+    Header always set X-Robots-Tag "noindex, nofollow"
+  </FilesMatch>
+
+  # The teaser is 82MB and its name is not fingerprinted. Let a browser keep it
+  # for a day so a reviewer who replays it does not pull the whole file again,
+  # but not so long that a re-cut would be invisible. Bump the filename when the
+  # cut changes and this becomes a non-issue.
+  <FilesMatch "\.(mp4|webm|m4v)$">
+    Header always set Cache-Control "private, max-age=86400"
+    Header always set X-Robots-Tag "noindex, nofollow"
+  </FilesMatch>
+
+  # The deck must never be indexed or cached by an intermediary.
+  <FilesMatch "\.pdf$">
+    Header always set Cache-Control "private, no-store"
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  </FilesMatch>
+</IfModule>
+
+# Byte-range requests are what let a viewer scrub the teaser without
+# downloading it end to end. Apache does this by default, but some shared hosts
+# disable it behind a compression module, which breaks seeking entirely.
+<IfModule mod_headers.c>
+  Header always set Accept-Ranges bytes
+</IfModule>
+
+# Never gzip video — it is already compressed, and doing so strips the
+# byte-range support that seeking depends on.
+<IfModule mod_deflate.c>
+  SetEnvIfNoCase Request_URI \.(mp4|webm|m4v|webp|avif|woff2?)$ no-gzip dont-vary
+</IfModule>
+
+# --- Password gate -----------------------------------------------------------
+# The site previously sat behind Cloudflare Access. On your own hosting there is
+# no gate: anyone with the URL can read it. To add one, create a password file
+# via your host's control panel (cPanel > Directory Privacy is the easy route),
+# then uncomment the four lines below and point AuthUserFile at it.
+#
+# AuthType Basic
+# AuthName "TeKillA Lunik — private review"
+# AuthUserFile /home/YOUR_ACCOUNT/.htpasswd
+# Require valid-user
+# -----------------------------------------------------------------------------
+
+# Serve modern formats with the right type if the host's defaults are stale.
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType image/avif .avif
+  AddType font/woff2 .woff2
+  # Without the right type some hosts send mp4 as octet-stream, which makes the
+  # browser offer a download instead of playing it inline.
+  AddType video/mp4 .mp4
+  AddType application/pdf .pdf
+</IfModule>

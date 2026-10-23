@@ -18,6 +18,7 @@ Confidential investor material — noindex throughout, and it needs a password (
 | Stack | Astro 5 static, Tailwind 4 via Vite plugin, self-hosted fonts |
 | Output | Fully prerendered HTML — **no Node runtime needed on the server** |
 | Built with | Node 22.19.0, npm 10.9.3 |
+| Languages | English, Russian, Spanish — three separate prerendered pages |
 | Page weight | ~240 KB first load, excluding the teaser and PDFs |
 | Live preview | <https://www.productphotoandvideo.com/Lunik/> |
 
@@ -48,24 +49,50 @@ unstyled text. `astro.config.mjs` reads a `BASE_PATH` env var to handle this:
 
 ```bash
 npm run build                      # → https://example.com/
-BASE_PATH=/lunik npm run build     # → https://example.com/lunik/
+BASE_PATH=/Lunik npm run build     # → https://example.com/Lunik/
 ```
 
 **If the site is going to the domain root — the likely case for the real
 domain — just `npm run build` with no `BASE_PATH`.** The current preview build
-is `/lunik`-scoped and will not work at a root.
+is `/Lunik`-scoped and will not work at a root.
 
 Two consequences worth knowing:
 
 - The folder name must match `BASE_PATH` exactly, **case included** (Linux).
 - **Renaming the folder later means rebuilding.** Moving files will not fix it.
 
+### Languages
+
+The site is trilingual. English is the default and sits at the root; the other
+two take a path prefix. All three are **prerendered at build time** — there is
+no JavaScript language switcher and no cookie:
+
+| URL (with `BASE_PATH=/Lunik`) | Language |
+|---|---|
+| `/Lunik/` | English |
+| `/Lunik/ru/` | Русский |
+| `/Lunik/es/` | Español |
+
+A build therefore emits three `index.html` files, not one. The switcher in the
+nav is three ordinary links, so each language has a URL that can be sent
+directly to a specific investor.
+
+All user-visible copy lives in `src/i18n/{en,ru,es}.ts`. Those three files must
+keep the same shape: `ru.ts` and `es.ts` are typed against `en.ts`, but **Astro
+strips types without checking them**, so a key missing from one locale will not
+fail the build — it renders blank. If you add a string, add it to all three and
+run `npx astro check` (it will offer to install `@astrojs/check` the first time).
+
+> The Russian and Spanish copy is a translation made for this site, not verbatim
+> deck text, and has not yet been reviewed by a native speaker. Flagged in the
+> header of each file.
+
 ### Then upload
 
 | What | Where | Size |
 |---|---|---|
-| Everything in `dist/` except the two below | web root | ~1.4 MB |
-| `media/teaser.mp4` | `media/` | ~17 MB |
+| Everything in `dist/` except the two below (incl. `ru/` and `es/`) | web root | ~1.4 MB |
+| `dist/media/teaser.mp4` | `media/` | 82.5 MB |
 | `dist/docs/TeKillA-Lunik-Creative-Deck.pdf` | `docs/` | 50.4 MB |
 
 Use **FTP/SFTP for the two large files** — cPanel's File Manager commonly
@@ -104,15 +131,15 @@ subfolder, add `Disallow: /<folder>/` to the *root* `robots.txt` as well.
 
 ## 5. Move the teaser to Vimeo — one line
 
-The teaser is currently **self-hosted**. `media/teaser.mp4` is a web encode of
-the master: 299 MB → about 17 MB, 720p H.264/AAC, with `+faststart` so it
-streams instead of downloading in full first.
+The teaser is currently **self-hosted**, which was a stopgap for sign-off only.
+`public/media/teaser.mp4` is a web encode of the master: 299 MB → 82.5 MB, still
+1080p, `+faststart` so it streams instead of downloading in full first.
 
 Two reasons it should not stay:
 
 - the file is directly downloadable by anyone who opens devtools
   (`controlslist="nodownload"` only hides the menu item)
-- every full view costs about 17 MB of egress
+- every full view costs 82.5 MB of egress
 
 Upload to Vimeo as **private + domain-restricted**, then in
 `src/pages/index.astro`:
@@ -129,7 +156,7 @@ Either path keeps the click-to-load facade — nothing is fetched until the view
 presses play.
 
 > **Note on the current preview server:** the file live at
-> `/Lunik/media/teaser.mp4` is the **299 MB master**, not the optimized encode —
+> `/Lunik/media/teaser.mp4` is the **299 MB master**, not the 82.5 MB encode —
 > the wrong file was uploaded. Irrelevant once Vimeo takes over; if the
 > self-hosted path persists, replace it with `dist/media/teaser.mp4`.
 
@@ -196,8 +223,12 @@ plain text rather than a broken link on purpose. Set it in
 ## 8. Where things live
 
 ```
-src/pages/index.astro      the whole page; VIMEO_ID and deck links at the top
-src/content/film.ts        all copy as data — timeline, credits, comparables
+src/pages/index.astro      English route (thin — renders FilmPage)
+src/pages/[lang]/index.astro   ru + es routes (thin — renders FilmPage)
+src/components/FilmPage.astro  the whole page markup + styles, one copy
+src/i18n/en.ts ru.ts es.ts     ALL user-visible copy, one file per language
+src/i18n/index.ts          locale registry, langHref() / assetHref() helpers
+src/content/film.ts        names that do not translate (TEAM credits)
 src/components/            TeaserPlayer, DossierEnvelope, Polaroid, PaperSheet…
 src/assets/                source images; Astro emits sized webp at build
 public/                    copied verbatim → .htaccess, robots.txt, docs/, media/
@@ -205,5 +236,12 @@ assets/                    working masters — NOT deployed
 README.md                  design decisions, content provenance, rights review
 ```
 
-Content is deliberately separated from markup: most copy changes are edits to
-`src/content/film.ts`, not to templates.
+Content is deliberately separated from markup. **Copy changes are edits to
+`src/i18n/*.ts`, never to templates** — and a change to one language usually
+means the same change in the other two.
+
+There is only one copy of the page markup (`FilmPage.astro`); the three route
+files just hand it a language. A layout fix therefore applies to all three
+locales at once, which is the point — but it also means testing a layout change
+in English alone is not enough. Russian labels run ~30% longer than English and
+have already broken the nav and the envelope's label plate once.

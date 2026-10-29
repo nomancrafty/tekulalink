@@ -8,10 +8,12 @@
 # On nginx hosting neither file works: the headers must go in the server block.
 
 <IfModule mod_headers.c>
-  # This material is confidential. X-Robots-Tag is the belt to the meta tag's
-  # braces: it covers images and the PDF too, and is obeyed even by a crawler
-  # that never parses the HTML.
-  Header always set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex"
+  # Kept out of search engines (noindex), but link previews are allowed so the
+  # URL unfurls with the film key art on WhatsApp, Facebook, LinkedIn, etc.
+  # max-image-preview:large lets the large Open Graph image through; the old
+  # nosnippet/noimageindex flags used to suppress it. The PDF stays locked down
+  # by its own rule below.
+  Header always set X-Robots-Tag "noindex, nofollow, max-image-preview:large"
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
   Header always set Referrer-Policy "no-referrer"

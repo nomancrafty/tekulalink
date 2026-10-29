@@ -1,3 +1,5 @@
-# Confidential investor material. Nothing here is public.
+# Kept out of search engines via X-Robots-Tag / meta noindex, but crawlers are
+# allowed to fetch so link previews (Open Graph) work on WhatsApp, Facebook,
+# LinkedIn, etc. Blocking here would stop the preview image from loading.
 User-agent: *
-Disallow: /
+Allow: /

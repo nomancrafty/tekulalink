@@ -4,7 +4,7 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet, noimageindex" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, max-image-preview:large" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "no-referrer" }
       ]
